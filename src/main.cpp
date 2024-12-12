@@ -9,4 +9,5 @@ int main() {
   
   std::string input;
   std::getline(std::cin, input);
+  std::cout << input << ": not found" << std::endl;
 }
