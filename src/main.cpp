@@ -1,21 +1,43 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <sstream>
 #include <filesystem>
+#include <cstdlib>   // For std::getenv
+#include <unistd.h>  // For fork, execvp
+#include <sys/wait.h>   // For waitpid
 
-// Function to split a string by a delimiter
-std::vector<std::string> split(const std::string& str, char delimiter) {
-    std::vector<std::string> tokens;
-    std::string token;
-    std::istringstream iss(str);
-
-    // Extract tokens separated by the delimiter
-    while (std::getline(iss, token, delimiter)) {
-        tokens.push_back(token);
+// Helper function to split a string by spaces (for command and arguments)
+std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
+  std::vector<std::string> tokens;
+  std::string token;
+  std::istringstream tokenStream(str);
+  while (std::getline(tokenStream, token, delimiter)) {
+    if (!token.empty()) {
+      tokens.push_back(token);
     }
-
-    return tokens;
+  }
+  return tokens;
 }
+
+// Function to get the full path of a command from PATH
+std::string get_path(const std::string& command) {
+  std::string result = "";    // Default to empty
+  std::string path_env = std::getenv("PATH");
+  std::vector<std::string> directories = split(path_env, ':');
+
+  // Iterate over each directory in PATH
+  for (const std::string& dir : directories) {
+      std::string abs_path = dir + "/" + command;
+      if (std::filesystem::exists(abs_path)) {
+          result = abs_path;    // Set result to the absolute path if found
+          break;
+      }
+  }
+    return result; // Return the result
+}
+
+
 
 int main() {
   // Flush after every std::cout / std::cerr
@@ -35,46 +57,62 @@ int main() {
       return 0;
     }
 
+    // Split the input into command and arguments
+    std::vector<std::string> tokens = split(input);
+    std::string command = tokens[0];
+
     // Handle the "echo ..." command
-    if (input.find("echo ") == 0) {
+    if (command == "echo") {
       const int ECHO_LEN = 5;
       std::cout << input.substr(ECHO_LEN) << std::endl;
     }
 
     // Handle the "type ..." command
-    else if (input.find("type ") == 0) {
+    else if (command ==  "type") {
       const int TYPE_LEN = 5;
-      bool found = false;
       std::string argument = input.substr(TYPE_LEN);
 
-      if(argument == "type" || argument == "exit" || argument == "echo"){
-        found = true;
+      // Check if the argument is a shell builtin
+      if (argument == "type" || argument == "exit" || argument == "echo") {
         std::cout << argument << " is a shell builtin" << std::endl;
-      }
-      // Search for the command in PATH directires
-      else {
-        std::string pathEnv = std::getenv("PATH");
-        std::vector<std::string> directories = split(pathEnv, ':');
-
-        for (const std::string& dir : directories) {
-          std::string fullPath = dir + "/" + argument;
-          
-          if (std::filesystem::exists(fullPath)) {
-            std::cout << argument << " is " << fullPath << std::endl;
-            found = true;
-            break;
-          }
-        }
-      }
-
-      // If the command was not found
-      if (!found) {
+      } else {
+        // Search for the command in PATH directories
+        std::string path = get_path(argument);
+        if (!path.empty()) {
+          std::cout << argument << " is " << path << std::endl;
+        } else {
           std::cout << argument << ": not found" << std::endl;
+        }
       }
     }
 
+    // Handle unrecognized commands
     else {
-      std::cout << input << ": command not found" << std::endl;
+      // Search for the command in PATH
+      std::string path = get_path(command);
+      if (path.empty()) {
+        std::cout << command << ": command not found" << std::endl;
+        continue;
+      }
+
+      // Convert tokens into a char* array for execvp
+      std::vector<char*> argv;
+      for (std::string& token : tokens) {
+        argv.push_back(&token[0]);
+      }
+      
+      // Fork and execute
+      pid_t pid = fork();
+      if (pid == 0) {
+        execvp(path.c_str(), argv.data());
+        std::cerr << "Failed to execute " << command << std::endl;
+        exit(EXIT_FAILURE);
+      } else if (pid > 0) {
+        int status;
+        waitpid(pid, &status, 0);
+      } else {
+        std::cerr << "Fork failed" << std::endl;
+      }
     }
   }
 
