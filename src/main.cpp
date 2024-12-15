@@ -4,8 +4,8 @@
 #include <sstream>
 #include <filesystem>
 #include <cstdlib>   // For std::getenv
-#include <unistd.h>  // For fork, execvp
-#include <sys/wait.h>   // For waitpid
+#include <unistd.h>  // For getcwd
+#include <limits.h>  // For PATH_MAX
 
 // Helper function to split a string by spaces (for command and arguments)
 std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
@@ -38,17 +38,14 @@ std::string get_path(const std::string& command) {
 }
 
 
-
 int main() {
   // Flush after every std::cout / std::cerr
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
 
   while (true) {
-    // Print the shell prompt
+    // Print the shell prompt and read user input
     std::cout << "$ ";
-
-    // Read user input
     std::string input;
     std::getline(std::cin, input);
 
@@ -73,11 +70,11 @@ int main() {
       std::string argument = input.substr(TYPE_LEN);
 
       // Check if the argument is a shell builtin
-      if (argument == "type" || argument == "exit" || argument == "echo") {
+      if (argument == "type" || argument == "exit" || argument == "echo" || argument == "pwd") {
         std::cout << argument << " is a shell builtin" << std::endl;
       } else {
-        // Search for the command in PATH directories
-        std::string path = get_path(argument);
+        std::string path = get_path(argument);    // Search for the command
+
         if (!path.empty()) {
           std::cout << argument << " is " << path << std::endl;
         } else {
@@ -86,32 +83,22 @@ int main() {
       }
     }
 
+    // Handle the "pwd" command
+    else if (command == "pwd") {
+      char cwd[PATH_MAX];  // Buffer to hold the cwd
+
+      getcwd(cwd, sizeof(cwd));
+      std::cout << cwd << std::endl;
+    }
+
     // Handle unrecognized commands
     else {
-      // Search for the command in PATH
+      // Check if the command exists in PATH using get_path
       std::string path = get_path(command);
-      if (path.empty()) {
-        std::cout << command << ": command not found" << std::endl;
-        continue;
-      }
-
-      // Convert tokens into a char* array for execvp
-      std::vector<char*> argv;
-      for (std::string& token : tokens) {
-        argv.push_back(&token[0]);
-      }
-      
-      // Fork and execute
-      pid_t pid = fork();
-      if (pid == 0) {
-        execvp(path.c_str(), argv.data());
-        std::cerr << "Failed to execute " << command << std::endl;
-        exit(EXIT_FAILURE);
-      } else if (pid > 0) {
-        int status;
-        waitpid(pid, &status, 0);
+      if (!path.empty()) {
+        int ret = system(input.c_str());
       } else {
-        std::cerr << "Fork failed" << std::endl;
+        std::cout << command << ": command not found" << std::endl;
       }
     }
   }
