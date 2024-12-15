@@ -2,12 +2,12 @@
 #include <string>
 #include <vector>
 #include <sstream>
-#include <filesystem>
-#include <cstdlib>   // For std::getenv
-#include <unistd.h>  // For getcwd
-#include <limits.h>  // For PATH_MAX
+#include <filesystem>  // For std::filesystem::exists
+#include <cstdlib>     // For std::getenv
+#include <unistd.h>    // For getcwd and chdir
+#include <limits.h>    // For PATH_MAX
 
-// Helper function to split a string by spaces (for command and arguments)
+// Helper function: Splits a string into tokens based on a delimiter
 std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
   std::vector<std::string> tokens;
   std::string token;
@@ -20,21 +20,22 @@ std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
   return tokens;
 }
 
-// Function to get the full path of a command from PATH
+// Extract tokens separated by the delimiter
 std::string get_path(const std::string& command) {
-  std::string result = "";    // Default to empty
+  std::string result = "";
   std::string path_env = std::getenv("PATH");
   std::vector<std::string> directories = split(path_env, ':');
 
   // Iterate over each directory in PATH
   for (const std::string& dir : directories) {
       std::string abs_path = dir + "/" + command;
+      // Check if the command exists in this directory
       if (std::filesystem::exists(abs_path)) {
-          result = abs_path;    // Set result to the absolute path if found
+          result = abs_path;
           break;
       }
   }
-    return result; // Return the result
+    return result;
 }
 
 
@@ -73,8 +74,9 @@ int main() {
       if (argument == "type" || argument == "exit" || argument == "echo" || argument == "pwd") {
         std::cout << argument << " is a shell builtin" << std::endl;
       } else {
-        std::string path = get_path(argument);    // Search for the command
+        std::string path = get_path(argument);
 
+        // Check if command is found in PATH
         if (!path.empty()) {
           std::cout << argument << " is " << path << std::endl;
         } else {
@@ -85,7 +87,7 @@ int main() {
 
     // Handle the "pwd" command
     else if (command == "pwd") {
-      char cwd[PATH_MAX];  // Buffer to hold the cwd
+      char cwd[PATH_MAX];
 
       getcwd(cwd, sizeof(cwd));
       std::cout << cwd << std::endl;
@@ -94,6 +96,7 @@ int main() {
     // Handle the "cd" command
     else if (command == "cd") {
       const std::string& directory = tokens[1];
+
       if (chdir(directory.c_str()) != 0) {
         std::cerr << "cd: " << directory << ": No such file or directory" << std::endl;
       }
