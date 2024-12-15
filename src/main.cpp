@@ -95,8 +95,14 @@ int main() {
 
     // Handle the "cd" command
     else if (command == "cd") {
-      const std::string& directory = tokens[1];
+      std::string& directory = tokens[1];
 
+      // Handle the '~' character (user's home directory)
+      if (directory == "~") {
+        const char* home_dir = std::getenv("HOME");
+        directory = home_dir;
+      }
+      // Attempt to change the directory
       if (chdir(directory.c_str()) != 0) {
         std::cerr << "cd: " << directory << ": No such file or directory" << std::endl;
       }
