@@ -58,13 +58,13 @@ int main() {
     std::vector<std::string> tokens = split(input);
     std::string command = tokens[0];
 
-    // Handle the "echo ..." command
+    // Handle the "echo" command
     if (command == "echo") {
       const int ECHO_LEN = 5;
       std::cout << input.substr(ECHO_LEN) << std::endl;
     }
 
-    // Handle the "type ..." command
+    // Handle the "type" command
     else if (command ==  "type") {
       const int TYPE_LEN = 5;
       std::string argument = input.substr(TYPE_LEN);
@@ -91,10 +91,18 @@ int main() {
       std::cout << cwd << std::endl;
     }
 
+    // Handle the "cd" command
+    else if (command == "cd") {
+      const std::string& directory = tokens[1];
+      if (chdir(directory.c_str()) != 0) {
+        std::cerr << "cd: " << directory << ": No such file or directory" << std::endl;
+      }
+    }
+
     // Handle unrecognized commands
     else {
-      // Check if the command exists in PATH using get_path
       std::string path = get_path(command);
+      
       if (!path.empty()) {
         int ret = system(input.c_str());
       } else {
