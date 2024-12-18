@@ -14,15 +14,29 @@ std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
   std::string token;
   bool insideSingleQuotes = false;
   bool insideDoubleQuotes = false;
+  bool escapeNext = false;
 
   for (char ch : str) {
-    // Toggle the insideSingleQuotes flag
+    // If the current character is escaped, add the character
+    if (escapeNext) {
+      token += ch;
+      escapeNext = false;
+      continue;
+    }
+
+    // If we encounter a backslash ouside quotes, set the escapeNext flag
+    if (ch == '\\' && !insideSingleQuotes && !insideDoubleQuotes) {
+      escapeNext = true;
+      continue;
+    }
+
+    // Toggle insideSingleQuotes flag if encountering an unescaped single quote
     if (ch == '\'' && !insideDoubleQuotes) {
       insideSingleQuotes = !insideSingleQuotes;
       continue;
     }
 
-    // Toggle the insideDoubleQuotes flag
+    // Toggle insideDoubleQuotes flag if encountering an unescaped double quote
     if (ch == '"' && !insideSingleQuotes) {
       insideDoubleQuotes = !insideDoubleQuotes;
       continue;
@@ -30,16 +44,17 @@ std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
 
     // Check if the delimiter is outside of quotes
     if (ch == delimiter && !insideSingleQuotes && !insideDoubleQuotes) {
-      if (!token.empty()) {    // Ignore consecutive delimiters
+      if (!token.empty()) { // Ignore consecutive delimiters
         tokens.push_back(token);
         token.clear();
       }
     } else {
+      // Add the character to the current token
       token += ch;
     }
   }
 
-  // Add the last token
+  // Add the last token if not empty
   if (!token.empty()) {
     tokens.push_back(token);
   }
