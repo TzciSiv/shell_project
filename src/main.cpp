@@ -6,24 +6,31 @@
 #include <cstdlib>     // For std::getenv
 #include <unistd.h>    // For getcwd and chdir
 #include <limits.h>    // For PATH_MAX
-#include <fstream>     // For file I/O
+#include <fstream>
 
-// Helper function: Splits a string into tokens based on a delimiter and quotes
+// Splits a string into tokens based on a delimiter and quotes
 std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
   std::vector<std::string> tokens;
-  bool insideQuotes = false;
   std::string token;
+  bool insideSingleQuotes = false;
+  bool insideDoubleQuotes = false;
 
   for (char ch : str) {
-    // Toggle the insideQuotes flag
-    if (ch == '\'') {
-      insideQuotes = !insideQuotes;
+    // Toggle the insideSingleQuotes flag
+    if (ch == '\'' && !insideDoubleQuotes) {
+      insideSingleQuotes = !insideSingleQuotes;
       continue;
     }
 
-    // Check if the delimiter is inside quotes
-    if (ch == delimiter && !insideQuotes) {
-      if (!token.empty()) {    // ignore spaces
+    // Toggle the insideDoubleQuotes flag
+    if (ch == '"' && !insideSingleQuotes) {
+      insideDoubleQuotes = !insideDoubleQuotes;
+      continue;
+    }
+
+    // Check if the delimiter is outside of quotes
+    if (ch == delimiter && !insideSingleQuotes && !insideDoubleQuotes) {
+      if (!token.empty()) {    // Ignore consecutive delimiters
         tokens.push_back(token);
         token.clear();
       }
@@ -32,7 +39,7 @@ std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
     }
   }
 
-  // Add the last token if it's not empty
+  // Add the last token
   if (!token.empty()) {
     tokens.push_back(token);
   }
@@ -40,7 +47,7 @@ std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
   return tokens;
 }
 
-// Extract tokens separated by the delimiter
+// Get the path
 std::string get_path(const std::string& command) {
   std::string result = "";
   std::string path_env = std::getenv("PATH");
