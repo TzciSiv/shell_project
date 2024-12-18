@@ -6,17 +6,37 @@
 #include <cstdlib>     // For std::getenv
 #include <unistd.h>    // For getcwd and chdir
 #include <limits.h>    // For PATH_MAX
+#include <fstream>     // For file I/O
 
-// Helper function: Splits a string into tokens based on a delimiter
+// Helper function: Splits a string into tokens based on a delimiter and quotes
 std::vector<std::string> split(const std::string& str, char delimiter = ' ') {
   std::vector<std::string> tokens;
+  bool insideQuotes = false;
   std::string token;
-  std::istringstream tokenStream(str);
-  while (std::getline(tokenStream, token, delimiter)) {
-    if (!token.empty()) {
-      tokens.push_back(token);
+
+  for (char ch : str) {
+    // Toggle the insideQuotes flag
+    if (ch == '\'') {
+      insideQuotes = !insideQuotes;
+      continue;
+    }
+
+    // Check if the delimiter is inside quotes
+    if (ch == delimiter && !insideQuotes) {
+      if (!token.empty()) {    // ignore spaces
+        tokens.push_back(token);
+        token.clear();
+      }
+    } else {
+      token += ch;
     }
   }
+
+  // Add the last token if it's not empty
+  if (!token.empty()) {
+    tokens.push_back(token);
+  }
+
   return tokens;
 }
 
@@ -61,8 +81,17 @@ int main() {
 
     // Handle the "echo" command
     if (command == "echo") {
-      const int ECHO_LEN = 5;
-      std::cout << input.substr(ECHO_LEN) << std::endl;
+      std::string content = "";
+
+      // Combine all tokens
+      for (size_t i = 1; i < tokens.size(); ++i) {
+        if (!content.empty()) {
+          content += " ";
+        }
+        content += tokens[i];
+      }
+
+      std::cout << content << std::endl;
     }
 
     // Handle the "type" command
@@ -108,12 +137,30 @@ int main() {
       }
     }
 
+    // Handle the "cat" command
+    else if (command == "cat") {
+      // Iterate over the arguments after "cat"
+      for (size_t i = 1; i < tokens.size(); ++i) {
+        std::string filename = tokens[i];
+        std::ifstream inFile(filename);    // Open the file
+        std::string line;
+
+        // Print file content line by line
+        while (std::getline(inFile, line)) {
+          std::cout << line;
+        }
+        inFile.close();    // Close the file
+      }
+
+      std::cout << std::endl;
+    }
+
     // Handle unrecognized commands
     else {
       std::string path = get_path(command);
       
       if (!path.empty()) {
-        int ret = system(input.c_str());
+        system(input.c_str());
       } else {
         std::cout << command << ": command not found" << std::endl;
       }
